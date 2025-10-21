@@ -28,6 +28,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.IPAllowlistMiddleware',
+    'core.middleware.AuditMiddleware',
 ]
 
 ROOT_URLCONF = 'bachhoa.urls'
@@ -50,11 +52,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'bachhoa.wsgi.application'
 
-DATABASES = {
-    'default': {
+def get_database_config():
+    # Prefer explicit Postgres env vars; fallback to sqlite
+    db_engine = os.getenv('DJANGO_DB_ENGINE', '').lower()
+    if db_engine in ['postgres', 'postgresql', 'psql']:
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DJANGO_DB_NAME', 'bachhoa'),
+            'USER': os.getenv('DJANGO_DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DJANGO_DB_PASSWORD', ''),
+            'HOST': os.getenv('DJANGO_DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DJANGO_DB_PORT', '5432'),
+        }
+    # Default sqlite
+    return {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+
+DATABASES = {
+    'default': get_database_config()
 }
 
 AUTH_PASSWORD_VALIDATORS = []
@@ -65,11 +82,30 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+        'core.auth.CookieJWTAuthentication',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': os.getenv('DRF_THROTTLE_USER', '2000/day'),
+        'anon': os.getenv('DRF_THROTTLE_ANON', '1000/day'),
+    }
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS/CSRF for cookie-based auth
+CORS_ALLOW_CREDENTIALS = True
+allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+CORS_ALLOWED_ORIGINS = [o.strip() for o in allowed_origins if o.strip()]
+CSRF_TRUSTED_ORIGINS = [o.replace('http://', 'http://').replace('https://', 'https://') for o in CORS_ALLOWED_ORIGINS]
+
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG

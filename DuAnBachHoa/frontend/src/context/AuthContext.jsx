@@ -1,26 +1,41 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(localStorage.getItem('token'));
-  const [role, setRole] = useState(localStorage.getItem('role') || 'user');
+  const [token, setToken] = useState(null);
+  const [role, setRole] = useState('buyer');
+  const [ready, setReady] = useState(false);
 
-  const login = (accessToken, userRole = 'user') => {
-    localStorage.setItem('token', accessToken);
-    localStorage.setItem('role', userRole);
-    setToken(accessToken);
+  const login = (_tokens, userRole = 'buyer') => {
+    // cookies are set by backend; just set local state flags
+    setToken('cookie');
     setRole(userRole);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+    try { api.post('/auth/logout/'); } catch {}
     setToken(null);
-    setRole('user');
+    setRole('buyer');
   };
 
-  const value = useMemo(() => ({ token, role, login, logout }), [token, role]);
+  // Bootstrap session via cookie (if any)
+  useEffect(() => {
+    (async () => {
+      try {
+        await api.get('/auth/csrf/'); // ensure csrftoken cookie is set
+        const { data } = await api.get('/me/');
+        if (data?.id) {
+          setRole(data.role || 'buyer');
+          setToken('cookie');
+        }
+      } catch {}
+      setReady(true);
+    })();
+  }, []);
+
+  const value = useMemo(() => ({ token, role, login, logout, ready }), [token, role, ready]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
