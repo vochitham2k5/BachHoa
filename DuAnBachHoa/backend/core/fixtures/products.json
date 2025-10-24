@@ -1,5 +1,0 @@
-[
-  {"model": "core.product", "pk": 1, "fields": {"name": "Táo Fuji", "description": "Táo nhập khẩu", "price": "25000.00", "stock": 100, "category": "Trái cây"}},
-  {"model": "core.product", "pk": 2, "fields": {"name": "Cam Mỹ", "description": "Cam ngọt", "price": "30000.00", "stock": 80, "category": "Trái cây"}},
-  {"model": "core.product", "pk": 3, "fields": {"name": "Sữa tươi", "description": "Sữa tiệt trùng", "price": "32000.00", "stock": 200, "category": "Sữa"}}
-]
