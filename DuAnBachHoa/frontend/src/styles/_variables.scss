@@ -1,0 +1,28 @@
+// Design tokens
+$primary: #0d6efd; // main
+$secondary: #6c757d; // secondary
+$success: #198754;
+$info: #0dcaf0;
+$warning: #ffc107;
+$danger: #dc3545;
+$light: #f8f9fa;
+$dark: #212529;
+
+$spacer: 1rem;
+$border-radius: .5rem;
+$border-radius-sm: .375rem;
+$border-radius-lg: .75rem;
+
+$font-size-base: 1rem;
+$font-size-sm: .875rem;
+$font-size-lg: 1.25rem;
+
+// Breakpoints
+$grid-breakpoints: (
+  xs: 0,
+  sm: 576px,
+  md: 768px,
+  lg: 992px,
+  xl: 1200px,
+  xxl: 1400px
+);

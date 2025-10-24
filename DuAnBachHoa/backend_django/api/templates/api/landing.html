@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <style>
+    :root {
+      --bg1: #0f172a; /* slate-900 */
+      --bg2: #1e293b; /* slate-800 */
+      --card: #0b1220cc;
+      --text: #e2e8f0; /* slate-200 */
+      --muted: #94a3b8; /* slate-400 */
+      --primary: #22d3ee; /* cyan-400 */
+      --primary-2: #38bdf8; /* sky-400 */
+      --shadow: 0 20px 50px rgba(0,0,0,.4);
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      display: grid;
+      place-items: center;
+    }
+    .wrap {
+      width: min(92vw, 880px);
+      display: grid;
+      gap: 18px;
+      text-align: center;
+    }
+    .brand {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card {
+      background: radial-gradient(1200px 400px at 10% -20%, rgba(34,211,238,.2), transparent),
+                  radial-gradient(1200px 400px at 90% 120%, rgba(56,189,248,.18), transparent),
+                  var(--card);
+      border: 1px solid rgba(148,163,184,.16);
+      border-radius: 16px;
+      padding: 42px 30px;
+      box-shadow: var(--shadow);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 5vw, 42px);
+      line-height: 1.15;
+      letter-spacing: -.02em;
+    }
+    p.lead { color: var(--muted); margin: 0 auto 22px; max-width: 56ch; }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      --btn-bg: linear-gradient(135deg, var(--primary), var(--primary-2));
+      background: var(--btn-bg);
+      color: #0b1220;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 0;
+      cursor: pointer;
+      letter-spacing: .02em;
+      box-shadow: 0 10px 25px rgba(34,211,238,.25);
+      transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+    }
+    .btn:hover { transform: translateY(-1.5px); filter: brightness(1.05); box-shadow: 0 14px 32px rgba(34,211,238,.28); }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid rgba(148,163,184,.25);
+      box-shadow: none;
+    }
+    footer { color: var(--muted); font-size: 13px; }
+    .kbd { background: rgba(148,163,184,.16); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(148,163,184,.2); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="brand">BachHoa • Admin Portal</div>
+    <section class="card">
+      <h1>Xin chào Admin 👋</h1>
+      <p class="lead">
+        Chào mừng bạn đến cổng quản trị. Nhấn nút dưới đây để đăng nhập vào trang quản trị Django Admin,
+        nơi bạn có thể duyệt hồ sơ ứng tuyển, quản lý sản phẩm, đơn hàng và phân công giao vận.
+      </p>
+      <div class="actions">
+        <a class="btn" href="/admin/">Đăng nhập Admin</a>
+      </div>
+    </section>
+    <footer>
+      Mẹo: Mở nhanh bằng <span class="kbd">/admin</span> hoặc dùng tài khoản superuser bạn đã tạo.
+    </footer>
+  </main>
+</body>
+</html>

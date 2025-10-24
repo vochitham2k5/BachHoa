@@ -1,38 +1,48 @@
 .App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  background-color: #f8f9fa;
 }
 
-.App-link {
-  color: #61dafb;
+.module-nav .nav-link {
+  border-radius: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: #495057;
+  font-weight: 600;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.module-nav .nav-link.active {
+  background-color: #0d6efd;
+  color: #fff;
+}
+
+.card.shadow-sm {
+  border: none;
+  border-radius: 1rem;
+}
+
+.module-badge {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.9rem;
+}
+
+.code-block {
+  background-color: #212529;
+  color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.list-group-item {
+  border: none;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.table {
+  border-radius: 0.75rem;
+  overflow: hidden;
 }
