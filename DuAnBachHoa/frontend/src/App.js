@@ -3,7 +3,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Container, Row, Col, Nav, Tab, Card, ListGroup, Table, Badge, Stack } from 'react-bootstrap';
 import './App.css';
-import Navbar from './components/Navbar';
+// import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import BuyerLayout from './layouts/BuyerLayout';
 import FilterPanel from './components/buyer/FilterPanel';
@@ -17,6 +17,8 @@ import Profile from './pages/Auth/Profile';
 import MyApplications from './pages/Auth/MyApplications';
 import Home from './pages/Buyer/Home';
 import ProductDetail from './pages/Buyer/ProductDetail';
+import Shop from './pages/Buyer/Shop';
+import BuyerChat from './pages/Buyer/Chat';
 import Cart from './pages/Buyer/Cart';
 import Checkout from './pages/Buyer/Checkout';
 import OrdersBuyer from './pages/Buyer/Orders';
@@ -28,6 +30,7 @@ import SellerVouchers from './pages/Seller/Vouchers';
 import SellerProfile from './pages/Seller/Profile';
 import SellerFinance from './pages/Seller/Finance';
 import SellerLayout from './layouts/SellerLayout';
+import SellerChat from './pages/Seller/Chat';
 import AdminApplications from './pages/Admin/Applications';
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminUsers from './pages/Admin/Users';
@@ -44,6 +47,7 @@ import ShipperNewOrders from './pages/Shipper/NewOrders';
 import ShipperActiveOrders from './pages/Shipper/ActiveOrders';
 import ShipperHistory from './pages/Shipper/History';
 import ShipperProfile from './pages/Shipper/Profile';
+import ShipperApply from './pages/Shipper/Apply';
 import ShipperLayout from './layouts/ShipperLayout';
 
 const overviewMatrix = [
@@ -489,10 +493,11 @@ const SummarySection = () => (
 
 function AppShell() {
   const location = useLocation();
-  const isBuyerRoute = location.pathname === '/' || location.pathname.startsWith('/buyer') || location.pathname.startsWith('/cart') || location.pathname.startsWith('/checkout');
+  const isBuyerRoute = location.pathname === '/' || location.pathname.startsWith('/buyer') || location.pathname.startsWith('/cart') || location.pathname.startsWith('/checkout') || location.pathname.startsWith('/shop') || location.pathname.startsWith('/chat');
+  const isAdminRoute = location.pathname.startsWith('/admin');
   return (
     <>
-      {!isBuyerRoute && <Navbar />}
+      {/* Removed global Navbar to avoid empty top bar */}
       <Routes>
           <Route index element={<BuyerLayout><Home /></BuyerLayout>} />
           <Route path="/login" element={<Login />} />
@@ -503,6 +508,8 @@ function AppShell() {
           {/* Buyer */}
           <Route path="/buyer/products" element={<BuyerLayout sidebar={<FilterPanel />}><Home /></BuyerLayout>} />
           <Route path="/buyer/products/:id" element={<BuyerLayout><ProductDetail /></BuyerLayout>} />
+          <Route path="/shop/:sellerId" element={<BuyerLayout><Shop /></BuyerLayout>} />
+          <Route path="/chat/:sellerId" element={<BuyerLayout><BuyerChat /></BuyerLayout>} />
           <Route path="/cart" element={<BuyerLayout><Cart /></BuyerLayout>} />
           <Route path="/checkout" element={<BuyerLayout><Checkout /></BuyerLayout>} />
           <Route path="/buyer/orders" element={<BuyerLayout><OrdersBuyer /></BuyerLayout>} />
@@ -514,6 +521,7 @@ function AppShell() {
           <Route path="/seller/vouchers" element={<ProtectedRoute roles={["SELLER"]}><SellerLayout><SellerVouchers /></SellerLayout></ProtectedRoute>} />
           <Route path="/seller/finance" element={<ProtectedRoute roles={["SELLER"]}><SellerLayout><SellerFinance /></SellerLayout></ProtectedRoute>} />
           <Route path="/seller/profile" element={<ProtectedRoute roles={["SELLER"]}><SellerLayout><SellerProfile /></SellerLayout></ProtectedRoute>} />
+          <Route path="/seller/chat" element={<ProtectedRoute roles={["SELLER"]}><SellerLayout><SellerChat /></SellerLayout></ProtectedRoute>} />
           <Route path="/seller/apply" element={<SellerApply />} />
 
           {/* Admin */}
@@ -529,6 +537,7 @@ function AppShell() {
 
           {/* Shipper */}
           <Route path="/shipper" element={<ProtectedRoute roles={["SHIPPER"]}><ShipperLayout><ShipperDashboard /></ShipperLayout></ProtectedRoute>} />
+          <Route path="/shipper/apply" element={<ShipperApply />} />
           <Route path="/shipper/new" element={<ProtectedRoute roles={["SHIPPER"]}><ShipperLayout><ShipperNewOrders /></ShipperLayout></ProtectedRoute>} />
           <Route path="/shipper/active" element={<ProtectedRoute roles={["SHIPPER"]}><ShipperLayout><ShipperActiveOrders /></ShipperLayout></ProtectedRoute>} />
           <Route path="/shipper/history" element={<ProtectedRoute roles={["SHIPPER"]}><ShipperLayout><ShipperHistory /></ShipperLayout></ProtectedRoute>} />
@@ -536,7 +545,7 @@ function AppShell() {
           {/* Legacy */}
           <Route path="/shipper/tasks" element={<ProtectedRoute roles={["SHIPPER"]}><ShipperLayout><ShipperActiveOrders /></ShipperLayout></ProtectedRoute>} />
       </Routes>
-      {!isBuyerRoute && <Footer />}
+      {!isBuyerRoute && !isAdminRoute && <Footer />}
     </>
   );
 }

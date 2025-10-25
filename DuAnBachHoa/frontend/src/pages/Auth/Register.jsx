@@ -56,11 +56,12 @@ const Register = () => {
     }
   };
 
+  const maxW = form.roleChoice === 'BUYER' ? 640 : 960; // keep seller/shipper narrower than screen
   return (
-    <Container className="py-4">
+    <Container fluid className="py-4" style={{ overflowX: 'hidden' }}>
       <Row className="justify-content-center">
-        <Col md={8} lg={7}>
-          <Card className="shadow-sm">
+        <Col xs={12} md={11} lg={10}>
+          <Card className="shadow-sm" style={{ maxWidth: maxW, margin: '0 auto' }}>
             <Card.Body>
               <Card.Title className="mb-2">Đăng ký tài khoản</Card.Title>
               <ProgressBar now={progress} className="mb-3" />

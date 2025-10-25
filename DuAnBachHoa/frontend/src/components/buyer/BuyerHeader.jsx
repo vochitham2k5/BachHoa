@@ -204,7 +204,7 @@ const BuyerHeader = () => {
                     <Dropdown.Item as={Link} to="/profile">Tài khoản</Dropdown.Item>
                     <Dropdown.Divider />
                     <Dropdown.Item as={Link} to="/seller/apply">Trở thành Seller</Dropdown.Item>
-                    <Dropdown.Item as={Link} to="/shipper/profile">Trở thành Shipper</Dropdown.Item>
+                    <Dropdown.Item as={Link} to="/shipper/apply">Trở thành Shipper</Dropdown.Item>
                     <Dropdown.Divider />
                     <Dropdown.Item onClick={logout}>Đăng xuất</Dropdown.Item>
                   </Dropdown.Menu>

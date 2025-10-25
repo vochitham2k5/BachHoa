@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Container, Form, Row, Carousel } from 'react-bootstrap';
 import api from '../../services/api';
 import ProductCard from '../../components/ProductCard';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Home = () => {
+  const location = useLocation();
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [q, setQ] = useState('');
   const [products, setProducts] = useState([]);
   const { addItem } = useCart();
@@ -15,10 +17,14 @@ const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => {
+    const initialQ = params.get('q') || '';
+    setQ(initialQ);
+    fetchProducts(initialQ, params.get('sellerId'));
+  }, [params]);
 
-  const fetchProducts = async (query) => {
-    const res = await api.get('/buyer/products', { params: { q: query } });
+  const fetchProducts = async (query, sellerId) => {
+    const res = await api.get('/buyer/products', { params: { q: query, sellerId } });
     setProducts(res.data || []);
   };
 
@@ -45,7 +51,7 @@ const Home = () => {
           <Form.Control placeholder="Tìm kiếm sản phẩm..." value={q} onChange={e => setQ(e.target.value)} />
         </Col>
         <Col md="auto">
-          <Button onClick={() => fetchProducts(q)}>Tìm kiếm</Button>
+          <Button onClick={() => fetchProducts(q, params.get('sellerId'))}>Tìm kiếm</Button>
         </Col>
       </Row>
       <Row xs={2} md={4} lg={5} className="g-3">

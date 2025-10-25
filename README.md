@@ -54,6 +54,9 @@ Backend Django nằm tại `DuAnBachHoa/backend_django`. Làm theo các bước 
 	python manage.py runserver
 	# hoặc chỉ định rõ
 	python manage.py runserver 127.0.0.1:8000
+
+8) chạy frontend bằng lệnh
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Location -Path 'c:/Users/Tai/Desktop/TV/BachHoa/DuAnBachHoa/frontend'; npm start --no-open"
 	```
 
 Gợi ý: Frontend đã đặt `REACT_APP_API_BASE=http://127.0.0.1:8000`, nên hãy chạy backend ở cổng 8000 để frontend kết nối đúng. Nếu bạn đổi cổng, nhớ cập nhật file `DuAnBachHoa/frontend/.env` rồi khởi động lại frontend dev server.

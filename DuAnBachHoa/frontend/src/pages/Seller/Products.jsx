@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Badge, Button, Card, Col, Container, Form, Modal, Row, Table } from 'react-bootstrap';
+import { Badge, Button, Card, Col, Container, Form, Modal, Row, Table, Alert } from 'react-bootstrap';
 import api from '../../services/api';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [show, setShow] = useState(false);
-  const [form, setForm] = useState({ name: '', price: 0, stock: 0, sku: '', status: 'DRAFT' });
+  const [form, setForm] = useState({ name: '', sku: '', price: 0, stock: 0, category: '', short_description: '', description: '', images: [] });
+  const [error, setError] = useState('');
   const [filters, setFilters] = useState({ q: '', status: '', lowStock: false, category: '' });
   const [csvText, setCsvText] = useState('');
 
@@ -24,14 +25,20 @@ const Products = () => {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const onCreate = async () => {
-    await api.post('/api/seller/products/', form);
-    setShow(false);
-    setForm({ name: '', price: 0, stock: 0, sku: '', status: 'DRAFT' });
-    fetchProducts();
+    setError('');
+    try {
+      const payload = { ...form };
+      await api.post('/api/seller/products/', payload);
+      setShow(false);
+      setForm({ name: '', sku: '', price: 0, stock: 0, category: '', short_description: '', description: '', images: [] });
+      fetchProducts();
+    } catch (e) {
+      setError(e?.response?.data?.detail || 'Tạo sản phẩm thất bại');
+    }
   };
 
   const onDelete = async (id) => { await api.delete(`/api/seller/products/${id}/`); fetchProducts(); };
-  const onPublish = async (p) => { await api.put(`/api/seller/products/${p.id}/`, { status: p.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED' }); fetchProducts(); };
+  // Seller cannot self-publish; admin will approve -> publish
   const onImportCsv = async () => { if (!csvText.trim()) return; await api.post('/api/seller/products/import/', { csv: csvText }); setCsvText(''); fetchProducts(); };
 
   return (
@@ -60,7 +67,7 @@ const Products = () => {
           <div className="d-flex justify-content-between align-items-center mb-2">
             <div className="fw-bold">Tổng: {products.length}</div>
             <div className="d-flex" style={{gap:8}}>
-              <Form.Control as="textarea" rows={1} placeholder="Dán CSV: name,sku,price,stock,status" value={csvText} onChange={e => setCsvText(e.target.value)} style={{width: 320}} />
+              <Form.Control as="textarea" rows={1} placeholder="Dán CSV: name,sku,price,stock" value={csvText} onChange={e => setCsvText(e.target.value)} style={{width: 320}} />
               <Button size="sm" variant="outline-primary" onClick={onImportCsv}>Nhập CSV</Button>
             </div>
           </div>
@@ -84,7 +91,7 @@ const Products = () => {
                   <td>{p.stock}</td>
                   <td><Badge bg={p.status === 'PUBLISHED' ? 'success' : 'secondary'}>{p.status}</Badge></td>
                   <td>
-                    <Button size="sm" className="me-1" variant={p.status === 'PUBLISHED' ? 'outline-warning' : 'outline-success'} onClick={() => onPublish(p)}>{p.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}</Button>
+                    <span className="me-2 text-muted small">{p.status === 'PUBLISHED' ? 'Đã xuất bản' : 'Chờ duyệt'}</span>
                     <Button size="sm" variant="outline-danger" onClick={() => onDelete(p.id)}>Xóa</Button>
                   </td>
                 </tr>
@@ -94,10 +101,11 @@ const Products = () => {
         </Card.Body>
       </Card>
 
-      <Modal show={show} onHide={() => setShow(false)}>
+      <Modal show={show} onHide={() => setShow(false)} size="lg">
         <Modal.Header closeButton><Modal.Title>Thêm sản phẩm</Modal.Title></Modal.Header>
         <Modal.Body>
           <Form>
+            {error && <Alert variant="danger">{error}</Alert>}
             <Form.Group className="mb-3">
               <Form.Label>Tên</Form.Label>
               <Form.Control value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -106,21 +114,48 @@ const Products = () => {
               <Form.Label>SKU</Form.Label>
               <Form.Control value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))} />
             </Form.Group>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Giá</Form.Label>
+                  <Form.Control type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Tồn kho</Form.Label>
+                  <Form.Control type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: Number(e.target.value) }))} />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Danh mục</Form.Label>
+                  <Form.Control value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Mô tả ngắn</Form.Label>
+                  <Form.Control value={form.short_description} onChange={e => setForm(f => ({ ...f, short_description: e.target.value }))} />
+                </Form.Group>
+              </Col>
+            </Row>
             <Form.Group className="mb-3">
-              <Form.Label>Giá</Form.Label>
-              <Form.Control type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))} />
+              <Form.Label>Mô tả chi tiết</Form.Label>
+              <Form.Control as="textarea" rows={4} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Tồn kho</Form.Label>
-              <Form.Control type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: Number(e.target.value) }))} />
+              <Form.Label>Hình ảnh (có thể chọn nhiều)</Form.Label>
+              <Form.Control type="file" multiple accept="image/*" onChange={async (e) => {
+                const files = Array.from(e.target.files || []);
+                const toB64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+                const images = await Promise.all(files.map(toB64));
+                setForm(f => ({ ...f, images }));
+              }} />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Trạng thái</Form.Label>
-              <Form.Select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                <option value="DRAFT">Nháp</option>
-                <option value="PUBLISHED">Xuất bản</option>
-              </Form.Select>
-            </Form.Group>
+            <div className="text-muted small">Sau khi lưu, sản phẩm sẽ ở trạng thái "Chờ duyệt". Admin sẽ duyệt để xuất bản lên sàn.</div>
           </Form>
         </Modal.Body>
         <Modal.Footer>

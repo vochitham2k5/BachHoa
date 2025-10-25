@@ -3,7 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children, roles, admin = false }) => {
-  const { user, token } = useAuth();
+  const { user, token, hydrated } = useAuth();
+  if (!hydrated) return null; // tránh redirect sớm khi app đang hydrate
   if (!token) return <Navigate to="/login" replace />;
   if (admin) {
     if (user?.is_admin) return children;

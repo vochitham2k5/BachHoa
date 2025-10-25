@@ -45,6 +45,7 @@ const Products = () => {
                           <Button variant="outline-secondary">Moderate</Button>
                           <Dropdown.Toggle split variant="outline-secondary" />
                           <Dropdown.Menu>
+                            <Dropdown.Item onClick={()=>moderate(f.product?.id,'approve')}>Approve (Publish)</Dropdown.Item>
                             <Dropdown.Item onClick={()=>moderate(f.product?.id,'remove')}>Remove product</Dropdown.Item>
                             <Dropdown.Item onClick={()=>moderate(f.product?.id,'warn')}>Warn seller</Dropdown.Item>
                             <Dropdown.Item onClick={()=>moderate(f.product?.id,'suspend_seller')}>Suspend seller</Dropdown.Item>
@@ -85,6 +86,7 @@ const Products = () => {
                           <Button variant="outline-secondary">Moderate</Button>
                           <Dropdown.Toggle split variant="outline-secondary" />
                           <Dropdown.Menu>
+                            <Dropdown.Item onClick={()=>moderate(p.id,'approve')}>Approve (Publish)</Dropdown.Item>
                             <Dropdown.Item onClick={()=>moderate(p.id,'remove')}>Remove product</Dropdown.Item>
                             <Dropdown.Item onClick={()=>moderate(p.id,'warn')}>Warn seller</Dropdown.Item>
                             <Dropdown.Item onClick={()=>moderate(p.id,'suspend_seller')}>Suspend seller</Dropdown.Item>

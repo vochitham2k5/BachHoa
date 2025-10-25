@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Badge, Button, Card, Col, Container, Form, Modal, Row, Stack } from 'react-bootstrap';
+import { Badge, Button, Card, Col, Container, Form, Modal, Row, Stack, InputGroup } from 'react-bootstrap';
 import api from '../../services/api';
 import { emitAdminEvent } from '../../contexts/AdminBus';
 import { useAdminUI } from '../../contexts/AdminUIContext';
@@ -91,8 +91,8 @@ const Applications = () => {
           {detail ? (
             <>
               <div className="mb-2"><strong>Loại:</strong> {detail.type}</div>
-              <div className="mb-2"><strong>Trạng thái:</strong> {detail.status}</div>
-              <pre className="bg-light p-2 rounded" style={{ maxHeight: 300, overflow: 'auto' }}>{JSON.stringify(detail.data, null, 2)}</pre>
+              <div className="mb-3"><strong>Trạng thái:</strong> {detail.status}</div>
+              <ApplicationDetailView type={detail.type} data={detail.data || {}} />
             </>
           ) : (
             'Đang tải...'
@@ -118,28 +118,52 @@ const Applications = () => {
 const ApproveModal = ({ show, onHide, detail, onConfirm }) => {
   const [commission, setCommission] = useState('');
   const [initialConfig, setInitialConfig] = useState('');
+  const [errors, setErrors] = useState({ commission: '', json: '' });
   const isSeller = (detail?.type === 'SELLER');
+
+  // Validate commission & JSON live
+  const cNum = commission === '' ? null : Number(commission);
+  const commissionInvalid = commission !== '' && (Number.isNaN(cNum) || cNum < 0 || cNum > 100);
+  const jsonInvalid = (() => {
+    if (!initialConfig) return false;
+    try { JSON.parse(initialConfig); return false; } catch { return true; }
+  })();
+
+  useEffect(() => {
+    setErrors({
+      commission: commissionInvalid ? 'Giá trị phải từ 0 đến 100' : '',
+      json: jsonInvalid ? 'JSON không hợp lệ' : ''
+    });
+  }, [commissionInvalid, jsonInvalid]);
+
   const payload = useMemo(() => {
     const p = {};
-    if (isSeller && commission) p.commissionPercent = parseFloat(commission);
-    if (isSeller && initialConfig) {
+    if (isSeller && commission !== '' && !commissionInvalid) p.commissionPercent = parseFloat(commission);
+    if (isSeller && initialConfig && !jsonInvalid) {
       try { p.initialConfig = JSON.parse(initialConfig); } catch (_) {}
     }
     return p;
-  }, [commission, initialConfig, isSeller]);
+  }, [commission, commissionInvalid, initialConfig, jsonInvalid, isSeller]);
   return (
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton><Modal.Title>Duyệt ứng tuyển</Modal.Title></Modal.Header>
       <Modal.Body>
         {isSeller ? (
           <>
-            <Form.Group className="mb-2">
-              <Form.Label>Commission % (optional)</Form.Label>
-              <Form.Control type="number" min={0} max={100} value={commission} onChange={(e)=>setCommission(e.target.value)} />
+            <Form.Group className="mb-3">
+              <Form.Label>Phần trăm hoa hồng (tùy chọn)</Form.Label>
+              <InputGroup>
+                <Form.Control type="number" inputMode="decimal" step="0.1" min={0} max={100} value={commission} onChange={(e)=>setCommission(e.target.value)} placeholder="0" aria-label="Hoa hồng" />
+                <InputGroup.Text>%</InputGroup.Text>
+              </InputGroup>
+              {errors.commission && <div className="text-danger small mt-1">{errors.commission}</div>}
+              <Form.Text className="text-muted">Để trống nếu dùng mặc định hệ thống.</Form.Text>
             </Form.Group>
             <Form.Group>
-              <Form.Label>Initial Config JSON (optional)</Form.Label>
-              <Form.Control as="textarea" rows={3} placeholder='{"tier":"standard"}' value={initialConfig} onChange={(e)=>setInitialConfig(e.target.value)} />
+              <Form.Label>Cấu hình khởi tạo (JSON, tùy chọn)</Form.Label>
+              <Form.Control as="textarea" rows={4} placeholder='{"tier":"standard"}' value={initialConfig} onChange={(e)=>setInitialConfig(e.target.value)} />
+              {errors.json && <div className="text-danger small mt-1">{errors.json}</div>}
+              <Form.Text className="text-muted">Ví dụ: {`{"tier":"standard"}`} hoặc để trống.</Form.Text>
             </Form.Group>
           </>
         ) : (
@@ -148,9 +172,7 @@ const ApproveModal = ({ show, onHide, detail, onConfirm }) => {
       </Modal.Body>
       <div className="px-3 pb-3 d-flex justify-content-end gap-2">
         <Button variant="secondary" onClick={onHide}>Hủy</Button>
-        <Button onClick={()=>onConfirm(payload)}>
-          Xác nhận
-        </Button>
+        <Button onClick={()=>onConfirm(payload)} disabled={Boolean(errors.commission || errors.json)}>Xác nhận</Button>
       </div>
     </Modal>
   );
@@ -195,3 +217,77 @@ const RequestInfoModal = ({ show, onHide, onConfirm }) => {
 };
 
 export default Applications;
+
+// ----- Helpers -----
+const Field = ({ label, value }) => (
+  <Form.Group as={Col} md={6} className="mb-3">
+    <Form.Label className="text-muted small mb-1">{label}</Form.Label>
+    <Form.Control value={value ?? ''} readOnly plaintext={false} />
+  </Form.Group>
+);
+
+const ApplicationDetailView = ({ type, data }) => {
+  // Hide long base64 or large blobs by replacing with a short tag
+  const prettyVal = (k, v) => {
+    if (v == null) return '';
+    if (typeof v === 'string' && v.startsWith('data:')) return 'Đã đính kèm tệp';
+    if (/image|license|base64/i.test(k) && typeof v === 'string') return 'Đã đính kèm tệp';
+    return v;
+  };
+
+  if (type === 'SELLER') {
+    return (
+      <Card className="shadow-sm">
+        <Card.Body>
+          <Row>
+            <Field label="Họ tên" value={prettyVal('fullName', data.fullName)} />
+            <Field label="Email" value={prettyVal('email', data.email)} />
+            <Field label="Số điện thoại" value={prettyVal('phone', data.phone)} />
+            <Field label="Tên cửa hàng" value={prettyVal('shopName', data.shopName)} />
+            <Field label="Danh mục chính" value={prettyVal('shopCategory', data.shopCategory)} />
+            <Field label="Địa chỉ kho" value={prettyVal('shopAddress', data.shopAddress)} />
+            <Field label="Ngân hàng" value={prettyVal('bankName', data.bankName)} />
+            <Field label="Số tài khoản" value={prettyVal('bankAccount', data.bankAccount)} />
+            <Field label="Giấy phép KD" value={prettyVal('licenseImageBase64', data.licenseImageBase64)} />
+            <Field label="Logo cửa hàng" value={prettyVal('logoBase64', data.logoBase64)} />
+          </Row>
+        </Card.Body>
+      </Card>
+    );
+  }
+
+  if (type === 'SHIPPER') {
+    return (
+      <Card className="shadow-sm">
+        <Card.Body>
+          <Row>
+            <Field label="Họ tên" value={prettyVal('fullName', data.fullName)} />
+            <Field label="Email" value={prettyVal('email', data.email)} />
+            <Field label="Số điện thoại" value={prettyVal('phone', data.phone)} />
+            <Field label="Loại phương tiện" value={prettyVal('vehicleType', data.vehicleType)} />
+            <Field label="Biển số" value={prettyVal('plateNumber', data.plateNumber)} />
+            <Field label="Khu vực hoạt động" value={prettyVal('activeArea', data.activeArea)} />
+            <Field label="GPLX" value={prettyVal('licenseImageBase64', data.licenseImageBase64)} />
+            <Field label="Ảnh phương tiện" value={prettyVal('vehiclePhotoBase64', data.vehiclePhotoBase64)} />
+            <Field label="CMND/CCCD trước" value={prettyVal('idCardFrontBase64', data.idCardFrontBase64)} />
+            <Field label="CMND/CCCD sau" value={prettyVal('idCardBackBase64', data.idCardBackBase64)} />
+            <Field label="Ảnh chân dung" value={prettyVal('profilePhotoBase64', data.profilePhotoBase64)} />
+          </Row>
+        </Card.Body>
+      </Card>
+    );
+  }
+
+  // Fallback generic key/value grid
+  return (
+    <Card className="shadow-sm">
+      <Card.Body>
+        <Row>
+          {Object.entries(data || {}).map(([k, v]) => (
+            <Field key={k} label={k} value={prettyVal(k, v)} />
+          ))}
+        </Row>
+      </Card.Body>
+    </Card>
+  );
+};

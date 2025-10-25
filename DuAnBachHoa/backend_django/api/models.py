@@ -301,3 +301,40 @@ class AuditLog(models.Model):
     resource_id = models.IntegerField()
     meta = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+# --- Social / Messaging ---
+class Follow(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='follows')
+    seller = models.ForeignKey('Seller', on_delete=models.CASCADE, related_name='followers_rel')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'seller')
+
+    def __str__(self):
+        return f"Follow<{getattr(self.user, 'username', '')}->{getattr(self.seller, 'id', '')}>"
+
+
+class ChatThread(models.Model):
+    seller = models.ForeignKey('Seller', on_delete=models.CASCADE, related_name='chat_threads')
+    buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_threads')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('seller', 'buyer')
+
+    def __str__(self):
+        return f"Thread<S{self.seller_id}-B{self.buyer_id}>"
+
+
+class ChatMessage(models.Model):
+    thread = models.ForeignKey(ChatThread, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_by_buyer = models.BooleanField(default=False)
+    read_by_seller = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Msg<T{self.thread_id} by {self.sender_id}>"

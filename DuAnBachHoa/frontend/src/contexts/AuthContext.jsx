@@ -4,9 +4,23 @@ import api from '../services/api';
 const AuthCtx = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  // Hydrate from localStorage so reload không bị out ra trang khác
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
+  });
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem('token');
+      const u = JSON.parse(localStorage.getItem('user') || 'null');
+      if (t) setToken(t);
+      if (u) setUser(u);
+    } catch {}
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -15,6 +29,11 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('token');
     }
   }, [token]);
+
+  useEffect(() => {
+    if (user) localStorage.setItem('user', JSON.stringify(user));
+    else localStorage.removeItem('user');
+  }, [user]);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -51,7 +70,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = useMemo(() => ({ user, token, loading, login, register, logout, setUser }), [user, token, loading]);
+  const value = useMemo(() => ({ user, token, loading, hydrated, login, register, logout, setUser }), [user, token, loading, hydrated]);
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 };

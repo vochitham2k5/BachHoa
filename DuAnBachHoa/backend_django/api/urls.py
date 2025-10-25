@@ -43,6 +43,8 @@ urlpatterns = [
     # Buyer
     path('buyer/products', views.buyer_list_products),
     path('buyer/products/<int:prod_id>', views.buyer_get_product),
+    path('buyer/shop/<int:seller_id>', views.buyer_get_shop),
+    path('buyer/shop/<int:seller_id>/follow', views.shop_toggle_follow),
     path('buyer/orders', views.buyer_orders),
     path('buyer/orders/<int:order_id>', views.buyer_get_order),
     path('buyer/orders/<int:order_id>/cancel', views.buyer_cancel_order),
@@ -50,6 +52,11 @@ urlpatterns = [
     # Aliases to match /api/* convention
     path('api/products/', views.buyer_list_products),
     path('api/products/<int:prod_id>/', views.buyer_get_product),
+    path('api/shop/<int:seller_id>/', views.buyer_get_shop),
+    path('api/shop/<int:seller_id>/follow', views.shop_toggle_follow),
+    path('api/chat/threads/<int:seller_id>/open', views.chat_open_thread),
+    path('api/chat/threads/<int:thread_id>/messages', views.chat_messages),
+    path('api/chat/seller/threads', views.seller_chat_threads),
     path('api/orders/', views.buyer_orders),
     path('api/orders/my/', views.buyer_orders),
     path('api/cart/', views.cart_pricing),

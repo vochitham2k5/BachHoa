@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import AccessToken
 
-from .models import Profile, Application, Seller, Shipper, Product, Order, OrderItem, DeliveryTask, Voucher, Address, Review, IdempotencyKey, Transaction, PayoutRequest, ShipperLocation, ProductFlag, AuditLog
+from .models import Profile, Application, Seller, Shipper, Product, Order, OrderItem, DeliveryTask, Voucher, Address, Review, IdempotencyKey, Transaction, PayoutRequest, ShipperLocation, ProductFlag, AuditLog, Follow, ChatThread, ChatMessage
 from .serializers import UserSerializer, ApplicationSerializer, ProductSerializer, OrderSerializer, DeliveryTaskSerializer, VoucherSerializer, SiteSettingSerializer, AddressSerializer, ReviewSerializer, TransactionSerializer, PayoutRequestSerializer, ProductFlagSerializer, AuditLogSerializer
 from .permissions import IsAuthenticatedCustom, IsAdmin, HasRole
 
@@ -280,10 +280,16 @@ def admin_request_more_info_application(request, app_id: int):
 def admin_stats(request):
     users_total = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
-    profiles = Profile.objects.all()
-    buyers = profiles.filter(roles__contains=['BUYER']).count()
-    sellers = profiles.filter(roles__contains=['SELLER']).count()
-    shippers = profiles.filter(roles__contains=['SHIPPER']).count()
+    # Avoid JSONField __contains on SQLite (not fully supported) by counting in Python
+    profiles = list(Profile.objects.all().only('roles'))
+    def _has_role(p, role):
+        try:
+            return role in (p.roles or [])
+        except Exception:
+            return False
+    buyers = sum(1 for p in profiles if _has_role(p, 'BUYER'))
+    sellers = sum(1 for p in profiles if _has_role(p, 'SELLER'))
+    shippers = sum(1 for p in profiles if _has_role(p, 'SHIPPER'))
     delivered_qs = Order.objects.filter(status='DELIVERED')
     delivered_sum = float(delivered_qs.aggregate(s=Sum('total'))['s'] or 0)
     # Monthly revenue last 6 months
@@ -413,7 +419,12 @@ def admin_moderate_product(request, prod_id: int):
     except Product.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
     action = (request.data or {}).get('action')
-    if action == 'remove':
+    if action == 'approve':
+        # Approve product to go live
+        p.status = 'PUBLISHED'
+        p.save()
+        AuditLog.objects.create(admin=request.user, action='PRODUCT_APPROVE', resource_type='Product', resource_id=p.id, meta={})
+    elif action == 'remove':
         p.status = 'DRAFT'
         p.save()
         AuditLog.objects.create(admin=request.user, action='PRODUCT_REMOVE', resource_type='Product', resource_id=p.id, meta={})
@@ -565,10 +576,12 @@ def buyer_list_products(request):
     min_price = request.query_params.get('minPrice')
     max_price = request.query_params.get('maxPrice')
     in_stock = request.query_params.get('inStock')
+    seller_id = request.query_params.get('sellerId')
     page = int(request.query_params.get('page') or 1)
     limit = int(request.query_params.get('limit') or 20)
     paged = request.query_params.get('paged')
-    qs = Product.objects.all().order_by('-id')
+    # Only show products that are approved/published
+    qs = Product.objects.filter(status='PUBLISHED').order_by('-id')
     if q:
         qs = qs.filter(name__icontains=q)
     if min_price:
@@ -577,6 +590,8 @@ def buyer_list_products(request):
         qs = qs.filter(price__lte=max_price)
     if in_stock in ['1', 'true', 'True']:
         qs = qs.filter(stock__gt=0)
+    if seller_id:
+        qs = qs.filter(seller_id=seller_id)
     if paged:
         total = qs.count()
         start = (page - 1) * limit
@@ -590,10 +605,177 @@ def buyer_list_products(request):
 @transaction.atomic
 def buyer_get_product(request, prod_id: int):
     try:
-        prod = Product.objects.get(id=prod_id)
+        prod = Product.objects.select_related('seller').get(id=prod_id, status='PUBLISHED')
     except Product.DoesNotExist:
         return Response({'detail': 'Not found'}, status=404)
-    return Response(ProductSerializer(prod).data)
+    data = ProductSerializer(prod).data
+    # Attach seller summary for product page sidebar
+    seller = prod.seller
+    if seller:
+        data['seller'] = {
+            'id': seller.id,
+            'shopName': seller.shop_name,
+            'rating': float(seller.rating or 0),
+            'createdAt': seller.created_at.isoformat() if seller.created_at else None,
+            'productCount': seller.products.count(),
+        }
+    return Response(data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@transaction.atomic
+def buyer_get_shop(request, seller_id: int):
+    """Public shop profile with high-level metrics for the shop page.
+    Returns: {
+      id, shopName, rating, ratingCount, productCount,
+      followers, following, chatResponseRate, chatResponseSla,
+      joinedAt, lastOnlineAt
+    }
+    """
+    try:
+        seller = Seller.objects.select_related('user').get(id=seller_id)
+    except Seller.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=404)
+
+    # Basic metrics
+    product_count = seller.products.filter(status='PUBLISHED').count()
+    rev_agg = Review.objects.filter(product__seller=seller).aggregate(s=Sum('rating'), c=Count('id'))
+    c = int(rev_agg.get('c') or 0)
+    s = float(rev_agg.get('s') or 0)
+    rating = float(seller.rating or 0)
+    if c > 0:
+        rating = round(s / c, 2)
+
+    # Follow metrics
+    followers_count = 0
+    is_following = False
+    try:
+        followers_count = Follow.objects.filter(seller=seller).count()
+        u = getattr(request, 'user', None)
+        if getattr(u, 'is_authenticated', False):
+            is_following = Follow.objects.filter(seller=seller, user=u).exists()
+    except Exception:
+        # Table might not exist if migrations haven't run yet; fall back gracefully
+        followers_count = 0
+        is_following = False
+
+    data = {
+        'id': seller.id,
+        'shopName': seller.shop_name or getattr(seller.user, 'username', ''),
+        'rating': rating,
+        'ratingCount': c,
+        'productCount': product_count,
+        'followers': followers_count,
+        'following': 0,
+        'isFollowing': is_following,
+        # Simple placeholders for chat metrics
+        'chatResponseRate': 1.0,
+        'chatResponseSla': 'Trong vài phút',
+        'joinedAt': (seller.created_at or getattr(seller.user, 'date_joined', None)).isoformat() if (seller.created_at or getattr(seller.user, 'date_joined', None)) else None,
+        'lastOnlineAt': getattr(seller.user, 'last_login', None).isoformat() if getattr(seller.user, 'last_login', None) else None,
+    }
+    return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticatedCustom])
+@transaction.atomic
+def shop_toggle_follow(request, seller_id: int):
+    try:
+        seller = Seller.objects.get(id=seller_id)
+    except Seller.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=404)
+    try:
+        f = Follow.objects.filter(user=request.user, seller=seller).first()
+        if f:
+            f.delete()
+            following = False
+        else:
+            Follow.objects.create(user=request.user, seller=seller)
+            following = True
+        count = Follow.objects.filter(seller=seller).count()
+        return Response({'following': following, 'followers': count})
+    except Exception as e:
+        # Likely due to missing migrations for Follow
+        return Response({'detail': 'Follow feature not initialized. Please run migrations.', 'error': str(e)}, status=503)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticatedCustom])
+@transaction.atomic
+def chat_open_thread(request, seller_id: int):
+    try:
+        seller = Seller.objects.get(id=seller_id)
+    except Seller.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=404)
+    t, _ = ChatThread.objects.get_or_create(seller=seller, buyer=request.user)
+    return Response({'threadId': t.id})
+
+
+def _can_access_thread(user, t: ChatThread):
+    try:
+        return t.buyer_id == user.id or (hasattr(user, 'seller') and t.seller_id == user.seller.id)
+    except Exception:
+        return False
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticatedCustom])
+@transaction.atomic
+def chat_messages(request, thread_id: int):
+    try:
+        t = ChatThread.objects.select_related('seller', 'buyer').get(id=thread_id)
+    except ChatThread.DoesNotExist:
+        return Response({'detail': 'Not found'}, status=404)
+    if not _can_access_thread(request.user, t):
+        return Response({'detail': 'Forbidden'}, status=403)
+    if request.method == 'GET':
+        msgs = t.messages.order_by('created_at')
+        items = [{'id': m.id, 'senderId': m.sender_id, 'body': m.body, 'createdAt': m.created_at.isoformat()} for m in msgs]
+        # Mark messages as read for the viewer (seller or buyer)
+        try:
+            if request.user.id == t.buyer_id:
+                t.messages.exclude(sender_id=request.user.id).filter(read_by_buyer=False).update(read_by_buyer=True)
+            elif hasattr(request.user, 'seller') and request.user.seller.id == t.seller_id:
+                t.messages.exclude(sender_id=request.user.id).filter(read_by_seller=False).update(read_by_seller=True)
+        except Exception:
+            pass
+        return Response({'items': items})
+    # POST
+    body = (request.data or {}).get('body')
+    if not body:
+        return Response({'detail': 'body required'}, status=400)
+    m = ChatMessage.objects.create(thread=t, sender=request.user, body=body)
+    return Response({'id': m.id, 'createdAt': m.created_at.isoformat()})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedCustom])
+@transaction.atomic
+def seller_chat_threads(request):
+    """List chat threads for the current seller user with basic unread counts.
+    Returns: [{ id, buyerId, buyerName, lastBody, lastAt, unread }]
+    """
+    # Ensure the user is a seller
+    seller = getattr(request.user, 'seller', None)
+    if not seller:
+        return Response({'detail': 'Seller only'}, status=403)
+
+    threads = ChatThread.objects.filter(seller=seller).select_related('buyer').order_by('-id')
+    items = []
+    for t in threads:
+        last = t.messages.order_by('-created_at').first()
+        unread = t.messages.filter(read_by_seller=False).exclude(sender_id=request.user.id).count()
+        items.append({
+            'id': t.id,
+            'buyerId': t.buyer_id,
+            'buyerName': getattr(t.buyer, 'username', '') or getattr(t.buyer, 'email', ''),
+            'lastBody': getattr(last, 'body', ''),
+            'lastAt': getattr(last, 'created_at', None).isoformat() if last else None,
+            'unread': unread,
+        })
+    return Response({'items': items})
 
 
 @api_view(['POST'])
@@ -773,10 +955,7 @@ def create_review(request):
     rating = data.get('rating')
     if not product_id or not rating:
         return Response({'detail': 'product and rating required'}, status=400)
-    # Ensure user has delivered order for product
-    delivered = OrderItem.objects.filter(order__buyer=request.user, order__status='DELIVERED', product_id=product_id).exists()
-    if not delivered:
-        return Response({'detail': 'Not allowed'}, status=403)
+    # Relax gating: cho phép đánh giá không cần đơn đã giao (có thể đổi lại sau)
     ser = ReviewSerializer(data=data)
     ser.is_valid(raise_exception=True)
     r = Review.objects.create(user=request.user, **ser.validated_data)
@@ -838,13 +1017,14 @@ def seller_products(request):
     # unique sku per seller
     if sku and Product.objects.filter(seller=seller, sku=sku).exists():
         return Response({'detail': 'SKU already exists'}, status=400)
+    # Force newly created products into DRAFT (pending approval)
     p = Product.objects.create(
         seller=seller,
         name=name,
         price=price,
         stock=stock,
         sku=sku,
-        status=data.get('status') or 'DRAFT',
+        status='DRAFT',
         short_description=data.get('short_description', ''),
         description=data.get('description', ''),
         sale_price=data.get('sale_price') or None,

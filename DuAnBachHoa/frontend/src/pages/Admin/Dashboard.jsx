@@ -4,7 +4,18 @@ import api from '../../services/api';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({ users: 0, buyers: 0, sellers: 0, shippers: 0, revenueTotal: 0, monthlyRevenue: [] });
-  useEffect(() => { (async () => { const res = await api.get('/api/admin/stats/'); setStats(res.data || {}); })(); }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/api/admin/stats/');
+        setStats(res.data || {});
+      } catch (err) {
+        console.error('Failed to load admin stats', err);
+        // keep defaults to avoid runtime crash when API fails
+        setStats((s) => s);
+      }
+    })();
+  }, []);
 
   const maxRevenue = useMemo(() => Math.max(1, ...(stats.monthlyRevenue || []).map(m => m.total)), [stats]);
 

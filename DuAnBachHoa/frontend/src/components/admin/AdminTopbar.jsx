@@ -2,9 +2,11 @@ import React, { useMemo } from 'react';
 import { Navbar, Container, Button, Form, Nav, Badge, Dropdown, Breadcrumb } from 'react-bootstrap';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAdminUI } from '../../contexts/AdminUIContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminTopbar = ({ onToggleSidebar, onToggleRight, searchRef }) => {
   const { title, actions } = useAdminUI();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const crumbs = useMemo(() => {
@@ -52,11 +54,11 @@ const AdminTopbar = ({ onToggleSidebar, onToggleRight, searchRef }) => {
             <Badge bg="secondary" pill title="Notifications">0</Badge>
           </Nav.Item>
           <Dropdown align="end">
-            <Dropdown.Toggle variant="outline-secondary" size="sm">Admin</Dropdown.Toggle>
+            <Dropdown.Toggle variant="outline-secondary" size="sm">{user?.email || 'Admin'}</Dropdown.Toggle>
             <Dropdown.Menu>
               <Dropdown.Item as={Link} to="/admin/settings">Settings</Dropdown.Item>
               <Dropdown.Divider />
-              <Dropdown.Item href="#logout">Logout</Dropdown.Item>
+              <Dropdown.Item onClick={() => { logout(); navigate('/login'); }}>Logout</Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
         </Nav>

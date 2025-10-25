@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 
 const CartCtx = createContext(null);
@@ -26,7 +26,7 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem(storageKey, JSON.stringify(items));
   }, [items, storageKey, user]);
 
-  const addItem = (product, qty = 1) => {
+  const addItem = useCallback((product, qty = 1) => {
     if (!user) {
       const err = new Error('LOGIN_REQUIRED');
       err.code = 'LOGIN_REQUIRED';
@@ -47,13 +47,13 @@ export const CartProvider = ({ children }) => {
         sellerId: product.seller_id || product.sellerId,
       }];
     });
-  };
-  const removeItem = (id) => setItems(prev => prev.filter(x => x.id !== id));
-  const updateQty = (id, qty) => setItems(prev => prev.map(x => x.id === id ? { ...x, qty: Math.max(1, qty) } : x));
-  const clearCart = () => setItems([]);
+  }, [user]);
+  const removeItem = useCallback((id) => setItems(prev => prev.filter(x => x.id !== id)), []);
+  const updateQty = useCallback((id, qty) => setItems(prev => prev.map(x => x.id === id ? { ...x, qty: Math.max(1, qty) } : x)), []);
+  const clearCart = useCallback(() => setItems([]), []);
 
   const total = useMemo(() => items.reduce((s, x) => s + x.price * x.qty, 0), [items]);
-  const value = useMemo(() => ({ items, addItem, removeItem, updateQty, clearCart, total }), [items, total]);
+  const value = useMemo(() => ({ items, addItem, removeItem, updateQty, clearCart, total }), [items, total, addItem, removeItem, updateQty, clearCart]);
 
   return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;
 };
